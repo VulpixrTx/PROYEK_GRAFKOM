@@ -479,6 +479,7 @@ CANVAS.addEventListener('wheel', function(e) {
     var hoverMatrix = LIBS.get_I4();
     var flapMatrixKiri = LIBS.get_I4();
     var flapMatrixKanan = LIBS.get_I4();
+    var appletunMoveMatrix = LIBS.get_I4();
 
     var animate = function (time) {
         // Konversi waktu dari milidetik ke detik
@@ -547,7 +548,41 @@ CANVAS.addEventListener('wheel', function(e) {
 
 
         // APPLETUN
-        
+        // --- 3. Animasi Appletun (BARU) ---
+        // Gerakan naik-turun (bobbing)
+        var appletunHoverSpeed = hoverSpeed * 0.8;
+        var appletunHoverY = Math.sin(timeInSeconds * appletunHoverSpeed) * hoverAmplitude * 0.5; // Tidak setinggi Flapple
+        // Gerakan bergoyang (waddle)
+        var appletunWaddleAngle = Math.cos(timeInSeconds * appletunHoverSpeed) * LIBS.degToRad(5); // Goyang 5 derajat
+
+        var appletunMoveMatrix = LIBS.get_I4(); // Reset
+        LIBS.translateY(appletunMoveMatrix, appletunHoverY);
+        LIBS.rotateZ(appletunMoveMatrix, appletunWaddleAngle); // Goyang ke kiri-kanan
+        appletun.MOVE_MATRIX = appletunMoveMatrix;
+
+        // --- 4. Animasi Hydrapple (BARU) ---
+        // Gerakan naik-turun (hover) dengan fase berbeda
+        var hydrappleHoverSpeed = hoverSpeed * 0.9;
+        var hydrappleHoverY = Math.sin(timeInSeconds * hydrappleHoverSpeed + 1.0) * hoverAmplitude; // +1.0 untuk offset fase
+        // Gerakan bergoyang sedikit (sway)
+        var hydrappleSwayAngle = Math.cos(timeInSeconds * hydrappleHoverSpeed * 0.5) * LIBS.degToRad(3); // Goyang pelan
+
+        var hydrappleMoveMatrix = LIBS.get_I4(); // Reset
+        LIBS.translateY(hydrappleMoveMatrix, hydrappleHoverY);
+        LIBS.rotateX(hydrappleMoveMatrix, hydrappleSwayAngle); // Goyang depan-belakang
+        hydrapple.MOVE_MATRIX = hydrappleMoveMatrix;
+
+        // --- 5. Animasi Dipplin (BARU) ---
+        // Gerakan berputar pelan
+        var dipplinRotateSpeed = 0.3;
+        var dipplinRotation = timeInSeconds * dipplinRotateSpeed;
+        // Gerakan naik-turun
+        var dipplinHoverY = Math.cos(timeInSeconds * hoverSpeed + 2.0) * hoverAmplitude * 0.7;
+
+        var dipplinMoveMatrix = LIBS.get_I4();
+        LIBS.translateY(dipplinMoveMatrix, dipplinHoverY);
+        LIBS.rotateY(dipplinMoveMatrix, dipplinRotation); // Berputar pada sumbu Y
+        dipplin.MOVE_MATRIX = dipplinMoveMatrix;
 
 
         
