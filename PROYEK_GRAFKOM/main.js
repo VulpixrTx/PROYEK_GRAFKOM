@@ -182,6 +182,13 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     var jariKanan2=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
     jariKanan2.generateEllipseJari(0.3,0.6,0.3);
 
+    var pipiKiri=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
+    pipiKiri.generatePipiFlapple();
+
+    var pipiKanan=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
+    pipiKanan.generatePipiFlapple();
+
+
     var mesh=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
     mesh.generateKubus();
 
@@ -226,6 +233,14 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     LIBS.rotateX(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(-90) );
     LIBS.rotateY(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(0));
     LIBS.rotateZ(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(90) );
+
+    LIBS.translateY(pipiKanan.POSITION_MATRIX, 0.7 );
+    LIBS.translateX(pipiKanan.POSITION_MATRIX, 0.6 );
+    LIBS.translateZ(pipiKanan.POSITION_MATRIX, -0.5 );
+
+    LIBS.translateY(pipiKiri.POSITION_MATRIX, 0.7 );
+    LIBS.translateX(pipiKiri.POSITION_MATRIX, -0.6 );
+    LIBS.translateZ(pipiKiri.POSITION_MATRIX, -0.5 );
 
 
     LIBS.translateY(tanduk.POSITION_MATRIX,15)
@@ -285,7 +300,7 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
 
     LIBS.translateY(sayapKanan.POSITION_MATRIX, 8.8 );
     LIBS.translateX(sayapKanan.POSITION_MATRIX, 15.3 );
-    LIBS.translateZ(sayapKanan.POSITION_MATRIX, 0 );
+    LIBS.translateZ(sayapKanan.POSITION_MATRIX, -0.5 );
     LIBS.rotateZ(sayapKanan.POSITION_MATRIX, LIBS.degToRad(120));
     LIBS.rotateX(sayapKanan.POSITION_MATRIX, LIBS.degToRad(180));
     LIBS.rotateY(sayapKanan.POSITION_MATRIX, LIBS.degToRad(0));
@@ -342,6 +357,8 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     kepalaFlapple.addChild(tanduk);
     kepalaFlapple.addChild(mataKiriFlapple);
     kepalaFlapple.addChild(mataKananFlapple);
+    kepalaFlapple.addChild(pipiKanan);
+    kepalaFlapple.addChild(pipiKiri);
     badanFlapple.addChild(tanganKananFlapple);
     badanFlapple.addChild(tanganKiriFlapple);
     tanganKananFlapple.addChild(sayapKanan);
@@ -462,6 +479,7 @@ CANVAS.addEventListener('wheel', function(e) {
     var hoverMatrix = LIBS.get_I4();
     var flapMatrixKiri = LIBS.get_I4();
     var flapMatrixKanan = LIBS.get_I4();
+    var appletunMoveMatrix = LIBS.get_I4();
 
     var animate = function (time) {
         // Konversi waktu dari milidetik ke detik
@@ -501,7 +519,7 @@ CANVAS.addEventListener('wheel', function(e) {
 
         // --- 2. Animasi Kepak TANGAN ---
         var flapSpeed = 1;
-        var flapRangeY = Math.PI/20; // 60 derajat
+        var flapRangeY = Math.PI/50; // 60 derajat
         var flapAngle = Math.sin(timeInSeconds * flapSpeed) * flapRangeY;
 
         // a. Sayap Kiri
@@ -527,7 +545,44 @@ CANVAS.addEventListener('wheel', function(e) {
         sayapKanan.MOVE_MATRIX = flapMatrixKanan;
         jariKanan1.MOVE_MATRIX = flapMatrixKanan;
         jariKanan2.MOVE_MATRIX = flapMatrixKanan;
-        
+
+
+        // APPLETUN
+        // --- 3. Animasi Appletun (BARU) ---
+        // Gerakan naik-turun (bobbing)
+        var appletunHoverSpeed = hoverSpeed * 0.8;
+        var appletunHoverY = Math.sin(timeInSeconds * appletunHoverSpeed) * hoverAmplitude * 0.5; // Tidak setinggi Flapple
+        // Gerakan bergoyang (waddle)
+        var appletunWaddleAngle = Math.cos(timeInSeconds * appletunHoverSpeed) * LIBS.degToRad(5); // Goyang 5 derajat
+
+        var appletunMoveMatrix = LIBS.get_I4(); // Reset
+        LIBS.translateY(appletunMoveMatrix, appletunHoverY);
+        LIBS.rotateZ(appletunMoveMatrix, appletunWaddleAngle); // Goyang ke kiri-kanan
+        appletun.MOVE_MATRIX = appletunMoveMatrix;
+
+        // --- 4. Animasi Hydrapple (BARU) ---
+        // Gerakan naik-turun (hover) dengan fase berbeda
+        var hydrappleHoverSpeed = hoverSpeed * 0.9;
+        var hydrappleHoverY = Math.sin(timeInSeconds * hydrappleHoverSpeed + 1.0) * hoverAmplitude; // +1.0 untuk offset fase
+        // Gerakan bergoyang sedikit (sway)
+        var hydrappleSwayAngle = Math.cos(timeInSeconds * hydrappleHoverSpeed * 0.5) * LIBS.degToRad(3); // Goyang pelan
+
+        var hydrappleMoveMatrix = LIBS.get_I4(); // Reset
+        LIBS.translateY(hydrappleMoveMatrix, hydrappleHoverY);
+        LIBS.rotateX(hydrappleMoveMatrix, hydrappleSwayAngle); // Goyang depan-belakang
+        hydrapple.MOVE_MATRIX = hydrappleMoveMatrix;
+
+        // --- 5. Animasi Dipplin (BARU) ---
+        // Gerakan berputar pelan
+        var dipplinRotateSpeed = 0.3;
+        var dipplinRotation = timeInSeconds * dipplinRotateSpeed;
+        // Gerakan naik-turun
+        var dipplinHoverY = Math.cos(timeInSeconds * hoverSpeed + 2.0) * hoverAmplitude * 0.7;
+
+        var dipplinMoveMatrix = LIBS.get_I4();
+        LIBS.translateY(dipplinMoveMatrix, dipplinHoverY);
+        LIBS.rotateY(dipplinMoveMatrix, dipplinRotation); // Berputar pada sumbu Y
+        dipplin.MOVE_MATRIX = dipplinMoveMatrix;
 
 
         
@@ -549,6 +604,7 @@ CANVAS.addEventListener('wheel', function(e) {
         hydrapple.render(LIBS.get_I4());
         appletun.render(LIBS.get_I4());
         dipplin.render(LIBS.get_I4());
+        
 
 
 

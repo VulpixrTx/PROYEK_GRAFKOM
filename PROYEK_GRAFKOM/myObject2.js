@@ -357,6 +357,76 @@ generateKepalaFlapple(
     }
 }
 
+generatePipiFlapple(
+  radiusX = 0.5,
+  radiusY = 0.5,
+  radiusZ = 0.5,
+  segmentsLatitude = 32,
+  segmentsLongitude = 32,
+  color = [0.75, 0.89, 0.67] // Default abu-abu
+) {
+  this.vertex = [];
+  this.faces = [];
+
+  // =======================================================
+  // 1. BUAT VERTICES (Titik-titik)
+  // =======================================================
+  for (let lat = 0; lat <= segmentsLatitude; lat++) {
+    // theta adalah sudut vertikal, dari 0 (atas) ke PI (bawah)
+    const theta = (lat * Math.PI) / segmentsLatitude;
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+
+    for (let lon = 0; lon <= segmentsLongitude; lon++) {
+      // phi adalah sudut horizontal, dari 0 ke 2*PI (melingkar)
+      const phi = (lon * 2 * Math.PI) / segmentsLongitude;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+
+      // Hitung posisi (x, y, z) pada bola unit (radius 1)
+      const x_unit = cosPhi * sinTheta;
+      const y_unit = cosTheta;
+      const z_unit = sinPhi * sinTheta;
+
+      // Terapkan radius yang berbeda untuk setiap sumbu
+      // Inilah yang mengubah bola menjadi ellipsoid
+      const x = x_unit * radiusX;
+      const y = y_unit * radiusY;
+      const z = z_unit * radiusZ;
+
+      // Tambahkan posisi (x, y, z) dan warna (r, g, b)
+      this.vertex.push(x, y, z);
+      this.vertex.push(...color);
+    }
+  }
+
+  // =======================================================
+  // 2. BUAT FACES (Permukaan)
+  // =======================================================
+  // Logic ini sama persis dengan membuat permukaan bola
+  for (let lat = 0; lat < segmentsLatitude; lat++) {
+    for (let lon = 0; lon < segmentsLongitude; lon++) {
+      // Tentukan 4 indeks yang membentuk satu 'quad' (persegi)
+      
+      // Jumlah vertex per baris (per lintang)
+      const points_per_row = segmentsLongitude + 1;
+
+      // Indeks titik di baris 'lat'
+      const first = lat * points_per_row + lon;
+      // Indeks titik di baris 'lat + 1' (baris di bawahnya)
+      const second = first + points_per_row;
+
+      // Buat 2 segitiga (secara clockwise)
+      
+      // Segitiga 1
+      this.faces.push(first, second, first + 1);
+      
+      // Segitiga 2
+      this.faces.push(second, second + 1, first + 1);
+    }
+  }
+}
+
   generatePupil (a=0.1,b=0.1,c=0.1, color = [0, 0, 0], latitudeBands = 30, longitudeBands = 30) {
     this.vertex = [];
     this.faces = [];
@@ -1442,93 +1512,138 @@ generateDipplin() {
     this.vertex = dipplin_vertex;
     this.faces = dipplin_faces;
 }
-  // Tambahkan method ini ke dalam class MyObject di myObject2.js
+
 
 generateAppletun() {
+    // Array untuk menyimpan data vertex (posisi dan warna) dan faces (indeks segitiga) model.
     this.vertex = [];
     this.faces = [];
 
-    /*===================== HELPER FUNCTIONS ===================== */
+    /*===================== HELPER FUNCTIONS (FUNGSI PEMBANTU) ===================== */
+
+    /**
+     * Mengaplikasikan transformasi matriks 4x4 pada sebuah vertex 3D.
+     * @param {Float32Array} matrix Matriks transformasi 4x4.
+     * @param {Array<number>} vertex Vertex [x, y, z].
+     * @returns {Array<number>} Vertex yang sudah ditransformasi [x', y', z'].
+     */
     function apply_matrix(matrix, vertex) {
         var x = vertex[0], y = vertex[1], z = vertex[2];
         return [
+            // Baris 1: x' = m0*x + m4*y + m8*z + m12*1 (w=1)
             matrix[0]*x + matrix[4]*y + matrix[8]*z + matrix[12],
+            // Baris 2: y' = m1*x + m5*y + m9*z + m13*1
             matrix[1]*x + matrix[5]*y + matrix[9]*z + matrix[13],
+            // Baris 3: z' = m2*x + m6*y + m10*z + m14*1
             matrix[2]*x + matrix[6]*y + matrix[10]*z + matrix[14]
         ];
     }
 
-    /*===================== GENERATE CONE ===================== */
+    /*===================== GENERATE CONE (KERUCUT) ===================== */
+
+    /**
+     * Menghasilkan geometri kerucut.
+     */
     function generateCone(vertices, indices, radius, height, radialSegments, color, transformMatrix) {
         const startVertexIndex = vertices.length / 6;
 
+        // 1. Puncak Kerucut (Apex)
         let apexX = 0, apexY = height / 2, apexZ = 0;
         if (transformMatrix) [apexX, apexY, apexZ] = apply_matrix(transformMatrix, [apexX, apexY, apexZ]);
         vertices.push(apexX, apexY, apexZ, ...color);
         const apexIndex = startVertexIndex;
 
+        // 2. Lingkaran Dasar (Base Circle) - Titik-titik tepi
         for (let i = 0; i <= radialSegments; i++) {
             const angle = i * 2 * Math.PI / radialSegments;
             let x = radius * Math.cos(angle);
             let y = -height / 2;
             let z = radius * Math.sin(angle);
+            
+            // Terapkan transformasi jika ada
             if (transformMatrix) [x, y, z] = apply_matrix(transformMatrix, [x, y, z]);
             vertices.push(x, y, z, ...color);
         }
 
+        // 3. Permukaan Sisi Kerucut (Sides Faces)
         const baseCircleStartIndex = startVertexIndex + 1;
         for (let i = 0; i < radialSegments; i++) {
+            // Segitiga: Apex, Titik i, Titik i+1
             indices.push(apexIndex, baseCircleStartIndex + i, baseCircleStartIndex + i + 1);
         }
 
+        // 4. Pusat Dasar (Base Center) - Diperlukan untuk menutup alas
         let baseCenterActualX = 0, baseCenterActualY = -height / 2, baseCenterActualZ = 0;
         if (transformMatrix) [baseCenterActualX, baseCenterActualY, baseCenterActualZ] = apply_matrix(transformMatrix, [baseCenterActualX, baseCenterActualY, baseCenterActualZ]);
         vertices.push(baseCenterActualX, baseCenterActualY, baseCenterActualZ, ...color);
         const actualBaseCenterIndex = vertices.length / 6 - 1;
 
+        // 5. Permukaan Dasar (Base Faces)
         for (let i = 0; i < radialSegments; i++) {
+            // Segitiga: BaseCenter, Titik i+1, Titik i
             indices.push(actualBaseCenterIndex, baseCircleStartIndex + i + 1, baseCircleStartIndex + i);
         }
     }
 
-    /*===================== GENERATE CUBE ===================== */
+    /*===================== GENERATE CUBE (KUBUS) ===================== */
+
+    /**
+     * Menghasilkan geometri kubus.
+     */
     function generateCube(vertices, indices, size, color, transformMatrix) {
         const startVertexIndex = vertices.length / 6;
         const halfSize = size / 2;
 
+        // Mendefinisikan 24 vertex untuk 6 sisi (4 vertex per sisi, dengan duplikasi)
         const cubeVertices = [
+            // Depan
             -halfSize, -halfSize,  halfSize, ...color,
              halfSize, -halfSize,  halfSize, ...color,
              halfSize,  halfSize,  halfSize, ...color,
             -halfSize,  halfSize,  halfSize, ...color,
+
+            // Belakang
             -halfSize, -halfSize, -halfSize, ...color,
             -halfSize,  halfSize, -halfSize, ...color,
              halfSize,  halfSize, -halfSize, ...color,
              halfSize, -halfSize, -halfSize, ...color,
-            -halfSize,  halfSize, -halfSize, ...color,
-            -halfSize,  halfSize,  halfSize, ...color,
-             halfSize,  halfSize,  halfSize, ...color,
-             halfSize,  halfSize, -halfSize, ...color,
-            -halfSize, -halfSize, -halfSize, ...color,
-             halfSize, -halfSize, -halfSize, ...color,
-             halfSize, -halfSize,  halfSize, ...color,
-            -halfSize, -halfSize,  halfSize, ...color,
-             halfSize, -halfSize, -halfSize, ...color,
-             halfSize,  halfSize, -halfSize, ...color,
-             halfSize,  halfSize,  halfSize, ...color,
-             halfSize, -halfSize,  halfSize, ...color,
-            -halfSize, -halfSize, -halfSize, ...color,
-            -halfSize, -halfSize,  halfSize, ...color,
-            -halfSize,  halfSize,  halfSize, ...color,
-            -halfSize,  halfSize, -halfSize, ...color
+
+            // Atas (Menggunakan vertex yang sudah ada/duplikasi untuk sisi)
+            -halfSize,  halfSize, -halfSize, ...color, // 8
+            -halfSize,  halfSize,  halfSize, ...color, // 9
+             halfSize,  halfSize,  halfSize, ...color, // 10
+             halfSize,  halfSize, -halfSize, ...color, // 11
+
+            // Bawah
+            -halfSize, -halfSize, -halfSize, ...color, // 12
+             halfSize, -halfSize, -halfSize, ...color, // 13
+             halfSize, -halfSize,  halfSize, ...color, // 14
+            -halfSize, -halfSize,  halfSize, ...color, // 15
+
+            // Kanan
+             halfSize, -halfSize, -halfSize, ...color, // 16
+             halfSize,  halfSize, -halfSize, ...color, // 17
+             halfSize,  halfSize,  halfSize, ...color, // 18
+             halfSize, -halfSize,  halfSize, ...color, // 19
+
+            // Kiri
+            -halfSize, -halfSize, -halfSize, ...color, // 20
+            -halfSize, -halfSize,  halfSize, ...color, // 21
+            -halfSize,  halfSize,  halfSize, ...color, // 22
+            -halfSize,  halfSize, -halfSize, ...color  // 23
         ];
 
+        // Indeks untuk membentuk 12 segitiga (2 per sisi, total 6 sisi)
         const cubeIndices = [
-            0, 1, 2,      0, 2, 3,    4, 5, 6,      4, 6, 7,
-            8, 9, 10,     8, 10, 11,   12, 13, 14,   12, 14, 15,
-            16, 17, 18,   16, 18, 19,  20, 21, 22,   20, 22, 23
+            0, 1, 2,      0, 2, 3,    // Depan
+            4, 5, 6,      4, 6, 7,    // Belakang
+            8, 9, 10,     8, 10, 11,   // Atas
+            12, 13, 14,   12, 14, 15,  // Bawah
+            16, 17, 18,   16, 18, 19,  // Kanan
+            20, 21, 22,   20, 22, 23   // Kiri
         ];
 
+        // Terapkan transformasi ke setiap vertex dan tambahkan ke array utama
         for (let i = 0; i < cubeVertices.length; i += 6) {
             let x = cubeVertices[i];
             let y = cubeVertices[i+1];
@@ -1537,72 +1652,97 @@ generateAppletun() {
             vertices.push(x, y, z, ...color);
         }
 
+        // Tambahkan indeks dengan offset
         for (let i = 0; i < cubeIndices.length; i++) {
             indices.push(cubeIndices[i] + startVertexIndex);
         }
     }
 
-    /*===================== GENERATE TORUS ARCH ===================== */
+    /*===================== GENERATE TORUS ARCH (BUSUR TORUS) ===================== */
+
+    /**
+     * Menghasilkan setengah torus (seperti busur atau pipa melengkung).
+     * Digunakan untuk membuat anyaman pai Appletun.
+     */
     function generateTorusArch(vertices, indices, majorRadius, minorRadius, majorSegments, minorSegments, color, transformMatrix) {
         const startVertexIndex = vertices.length / 6;
 
+        // Loop untuk minor angle (penampang melintang, membentuk lingkaran kecil)
         for (let j = 0; j <= minorSegments; j++) {
             const minorAngle = j * 2 * Math.PI / minorSegments;
             const r_cos_v = minorRadius * Math.cos(minorAngle);
             const r_sin_v = minorRadius * Math.sin(minorAngle);
 
+            // Loop untuk major angle (sepanjang busur, hanya setengah lingkaran (PI))
             for (let i = 0; i <= majorSegments; i++) {
-                const majorAngle = (i / majorSegments) * Math.PI;
+                const majorAngle = (i / majorSegments) * Math.PI; // Hanya dari 0 hingga Pi
                 const cos_u = Math.cos(majorAngle);
                 const sin_u = Math.sin(majorAngle);
 
-                let x = r_sin_v;
-                let y = (majorRadius + r_cos_v) * sin_u;
-                let z = (majorRadius + r_cos_v) * cos_u;
+                // Koordinat Torus (dimodifikasi agar busur terbuka ke atas dan sumbu Y adalah ketinggian)
+                let x = r_sin_v; // Diameter minor di sepanjang sumbu X
+                let y = (majorRadius + r_cos_v) * sin_u; // Ketinggian
+                let z = (majorRadius + r_cos_v) * cos_u; // Kedalaman
 
+                // Terapkan transformasi jika ada
                 if (transformMatrix) [x, y, z] = apply_matrix(transformMatrix, [x, y, z]);
                 vertices.push(x, y, z, ...color);
             }
         }
 
+        // Menghitung indeks untuk membentuk quad (dua segitiga)
         for (let j = 0; j < minorSegments; j++) {
             for (let i = 0; i < majorSegments; i++) {
                 const first = (j * (majorSegments + 1)) + i + startVertexIndex;
                 const second = first + majorSegments + 1;
+                // Segitiga 1
                 indices.push(first, second, first + 1);
+                // Segitiga 2
                 indices.push(second, second + 1, first + 1);
             }
         }
     }
 
-    /*===================== GENERATE SPHERE ===================== */
+    /*===================== GENERATE SPHERE (BOLA) ===================== */
+
+    /**
+     * Menghasilkan geometri bola atau elipsoid (dengan scaling).
+     * Mendukung pemotongan (latStart/latEnd) untuk membuat setengah bola.
+     */
     function generateSphere(vertices, indices, radius, latBands, longBands, color, options) {
         options = options || {};
         const startVertexIndex = vertices.length / 6;
+        // Skala dan posisi default (untuk elipsoid dan offset)
         const scale = options.scale || { x: 1, y: 1, z: 1 };
         const pos = options.positionOffset || { x: 0, y: 0, z: 0 };
+        // Batasan lintang (latStart/latEnd) untuk pemotongan (misalnya, setengah bola)
         const latStart = options.latStart !== undefined ? options.latStart : 0;
         const latEnd = options.latEnd !== undefined ? options.latEnd : Math.PI;
         const transformMatrix = options.transformMatrix || null;
 
+        // Perulangan untuk lintang (Latitude)
         for (let latNumber = 0; latNumber <= latBands; latNumber++) {
-            const theta = latStart + latNumber * (latEnd - latStart) / latBands;
+            const theta = latStart + latNumber * (latEnd - latStart) / latBands; // Sudut teta
             const sinTheta = Math.sin(theta);
             const cosTheta = Math.cos(theta);
 
+            // Perulangan untuk bujur (Longitude)
             for (let longNumber = 0; longNumber <= longBands; longNumber++) {
-                const phi = longNumber * 2 * Math.PI / longBands;
+                const phi = longNumber * 2 * Math.PI / longBands; // Sudut phi
                 const sinPhi = Math.sin(phi);
                 const cosPhi = Math.cos(phi);
 
+                // Menghitung koordinat bola normal
                 let x = cosPhi * sinTheta;
                 let y = cosTheta;
                 let z = sinPhi * sinTheta;
 
+                // Terapkan radius, skala, dan offset posisi
                 x = radius * x * scale.x + pos.x;
                 y = radius * y * scale.y + pos.y;
                 z = radius * z * scale.z + pos.z;
 
+                // Terapkan transformasi matriks (rotasi/translasi tambahan)
                 if (transformMatrix) {
                     [x, y, z] = apply_matrix(transformMatrix, [x, y, z]);
                 }
@@ -1610,109 +1750,137 @@ generateAppletun() {
             }
         }
 
+        // Menghitung indeks untuk membentuk permukaan (quads menjadi 2 segitiga)
         for (let latNumber = 0; latNumber < latBands; latNumber++) {
             for (let longNumber = 0; longNumber < longBands; longNumber++) {
                 const first = (latNumber * (longBands + 1)) + longNumber + startVertexIndex;
                 const second = first + longBands + 1;
+                // Segitiga 1:
                 indices.push(first, second, first + 1);
+                // Segitiga 2:
                 indices.push(second, second + 1, first + 1);
             }
         }
     }
 
-    /*===================== BUILD APPLETUN ===================== */
+    /*===================== BUILD APPLETUN (KONSTRUKSI MODEL) ===================== */
     var appletun_vertex = [];
     var appletun_faces = [];
 
-    // Parameters untuk anyaman pai
+    // --- Parameter untuk Anyaman Pai ---
     const pieRadius = 1.15;
     const pieScaleY = 1.2;
     const pieScaleXZ = 1.55;
+    // Jari-jari di mana strip pai "mendarat" pada permukaan (diambil dari setengah elipsoid)
     const latticeLandRadius = pieRadius * pieScaleXZ * 0.8;
+    // Ketinggian puncak elipsoid (tutup pai)
     const latticePeakY = pieRadius * pieScaleY;
+    // Ketinggian Y di mana strip pai "mendarat"
     const latticeLandY = latticePeakY * Math.sqrt(1 - Math.pow(latticeLandRadius, 2) / Math.pow(pieRadius * pieScaleXZ, 2));
+    
+    // Parameter untuk Torus Arch (Anyaman)
     const archMajorRadius = latticeLandRadius;
     const archMinorRadius = 0.15;
-    const archColor = [0.93, 0.72, 0.45];
+    const archColor = [0.93, 0.72, 0.45]; // Warna Kuning/Krem Pai
     const archHeight = latticePeakY - latticeLandY;
-    const archScaleY = archHeight / archMajorRadius;
+    const archScaleY = archHeight / archMajorRadius; // Skala agar tinggi arch sesuai
 
-    // BAGIAN 1: BADAN APEL (BAWAH)
+    // BAGIAN 1: BADAN APEL (BAWAH) - Warna Hijau Muda
     generateSphere(appletun_vertex, appletun_faces, 1.1, 30, 30, [0.84, 0.87, 0.53], {
-        scale: { x: 1.5, y: 1.2, z: 1.5 }, latStart: Math.PI / 2.1, latEnd: Math.PI
+        scale: { x: 1.5, y: 1.2, z: 1.5 }, // Elipsoid melebar
+        latStart: Math.PI / 2.1, // Potongan dari tengah ke bawah
+        latEnd: Math.PI // Hingga kutub bawah
     });
 
-    // BAGIAN 2: TUTUP PAI (ATAS)
+    // BAGIAN 2: TUTUP PAI (ATAS) - Warna Coklat Pai
     generateSphere(appletun_vertex, appletun_faces, 1.15, 30, 30, [0.85, 0.65, 0.4], {
-        scale: { x: 1.55, y: 1.2, z: 1.55 }, latStart: 0, latEnd: Math.PI / 2.1
+        scale: { x: 1.55, y: 1.2, z: 1.55 }, // Elipsoid sedikit lebih besar
+        latStart: 0, // Dari kutub atas
+        latEnd: Math.PI / 2.1 // Hingga potongan tengah
     });
 
-    // BAGIAN 3: ANYAMAN PAI
+    // BAGIAN 3: ANYAMAN PAI (LATTICE)
     const numStripsPerDirection = 2;
     const stripSpacing = 1.0;
+    
+    // Strip yang sejajar dengan sumbu X (berotasi di sumbu Y)
     for (let i = 0; i < numStripsPerDirection; i++) {
-        let transform = LIBS.get_I4();
-        LIBS.translateX(transform, (i - (numStripsPerDirection - 1) / 2) * stripSpacing);
-        LIBS.scaleY(transform, archScaleY);
-        LIBS.translateY(transform, latticeLandY);
+        let transform = LIBS.get_I4(); // Inisialisasi matriks identitas
+        LIBS.translateX(transform, (i - (numStripsPerDirection - 1) / 2) * stripSpacing); // Posisikan di X
+        LIBS.scaleY(transform, archScaleY); // Skala tinggi agar pas dengan bentuk elipsoid
+        LIBS.translateY(transform, latticeLandY); // Pindahkan ke ketinggian alas pai
         generateTorusArch(appletun_vertex, appletun_faces, archMajorRadius, archMinorRadius, 30, 15, archColor, transform);
     }
+    
+    // Strip yang sejajar dengan sumbu Z (diputar 90 derajat)
     for (let i = 0; i < numStripsPerDirection; i++) {
         let transform = LIBS.get_I4();
-        LIBS.translateZ(transform, (i - (numStripsPerDirection - 1) / 2) * stripSpacing);
+        LIBS.translateZ(transform, (i - (numStripsPerDirection - 1) / 2) * stripSpacing); // Posisikan di Z
         LIBS.scaleY(transform, archScaleY);
         LIBS.translateY(transform, latticeLandY);
-        LIBS.rotateY(transform, Math.PI / 2);
+        LIBS.rotateY(transform, Math.PI / 2); // Putar 90 derajat di sumbu Y
         generateTorusArch(appletun_vertex, appletun_faces, archMajorRadius, archMinorRadius, 30, 15, archColor, transform);
     }
 
-    // BAGIAN 4: DAUN
+    // BAGIAN 4: DAUN (STIK DAUN DI ATAS)
     const leaf_start_index = appletun_vertex.length / 6;
+    // Vertex Daun - Menggunakan 8 vertex untuk membuat 2 bidang (hijau dan merah)
     appletun_vertex.push(
-        0.0, 1.25, 0.0, 0.81, 0.36, 0.41,
-        -0.2, 1.5, 0.05, 0.81, 0.36, 0.41,
-        0.0, 1.9, 0.0, 0.81, 0.36, 0.41,
-        0.2, 1.5, -0.05, 0.81, 0.36, 0.41,
-        0.0, 1.25, 0.0, 0.55, 0.76, 0.44,
-        -0.2, 1.5, -0.05, 0.55, 0.76, 0.44,
-        0.0, 1.9, 0.0, 0.55, 0.76, 0.44,
-        0.2, 1.5, 0.05, 0.55, 0.76, 0.44
+        // Daun Merah (sebagai aksen)
+        0.0, 1.25, 0.0, 0.81, 0.36, 0.41, // 0: Dasar
+        -0.2, 1.5, 0.05, 0.81, 0.36, 0.41, // 1
+        0.0, 1.9, 0.0, 0.81, 0.36, 0.41, // 2: Puncak
+        0.2, 1.5, -0.05, 0.81, 0.36, 0.41, // 3
+        
+        // Daun Hijau
+        0.0, 1.25, 0.0, 0.55, 0.76, 0.44, // 4: Dasar
+        -0.2, 1.5, -0.05, 0.55, 0.76, 0.44, // 5
+        0.0, 1.9, 0.0, 0.55, 0.76, 0.44, // 6: Puncak
+        0.2, 1.5, 0.05, 0.55, 0.76, 0.44  // 7
     );
+    // Faces Daun: 2 segitiga per bidang (merah & hijau)
     appletun_faces.push(
-        leaf_start_index, leaf_start_index + 1, leaf_start_index + 2,
-        leaf_start_index, leaf_start_index + 2, leaf_start_index + 3,
-        leaf_start_index + 4, leaf_start_index + 5, leaf_start_index + 6,
-        leaf_start_index + 4, leaf_start_index + 6, leaf_start_index + 7
+        leaf_start_index, leaf_start_index + 1, leaf_start_index + 2, // Merah, Segitiga 1
+        leaf_start_index, leaf_start_index + 2, leaf_start_index + 3, // Merah, Segitiga 2
+        leaf_start_index + 4, leaf_start_index + 5, leaf_start_index + 6, // Hijau, Segitiga 1
+        leaf_start_index + 4, leaf_start_index + 6, leaf_start_index + 7  // Hijau, Segitiga 2
     );
 
-    // BAGIAN 5: KEPALA
+    // BAGIAN 5: KEPALA - Warna Hijau Tua
     generateSphere(appletun_vertex, appletun_faces, 1, 20, 20, [0.4, 0.6, 0.3], {
-        scale: { x: 0.7, y: 0.6, z: 0.7 }, positionOffset: { x: 0, y: -0.4, z: 1.7 }
+        scale: { x: 0.7, y: 0.6, z: 0.7 }, // Elipsoid kecil, sedikit pipih
+        positionOffset: { x: 0, y: -0.4, z: 1.7 } // Posisikan di depan
     });
 
-    // BAGIAN 6: MATA
+    // BAGIAN 6: MATA - Warna Hitam
+    // Mata Kiri
     generateSphere(appletun_vertex, appletun_faces, 1, 10, 10, [0, 0, 0], {
-        scale: { x: 0.05, y: 0.05, z: 0.05 }, positionOffset: { x: -0.25, y: -0.3, z: 2.35 }
+        scale: { x: 0.05, y: 0.05, z: 0.05 }, // Bola sangat kecil
+        positionOffset: { x: -0.25, y: -0.3, z: 2.35 } // Posisikan di depan kepala
     });
+    // Mata Kanan
     generateSphere(appletun_vertex, appletun_faces, 1, 10, 10, [0, 0, 0], {
-        scale: { x: 0.05, y: 0.05, z: 0.05 }, positionOffset: { x: 0.25, y: -0.3, z: 2.35 }
+        scale: { x: 0.05, y: 0.05, z: 0.05 },
+        positionOffset: { x: 0.25, y: -0.3, z: 2.35 }
     });
 
     // BAGIAN 7: KAKI & CAKAR
-    const legColor = [0.3, 0.5, 0.2];
-    const clawColor = [0.2, 0.3, 0.15];
+    const legColor = [0.3, 0.5, 0.2]; // Warna Kaki Hijau
+    const clawColor = [0.2, 0.3, 0.15]; // Warna Cakar Coklat Tua
     const legBaseY = -0.9;
+    // Skala dan posisi kaki
     const legScaleY = 0.35;
     const legScaleX = 0.5;
     const legScaleZ = 0.6;
     const legOutX = 1.2;
     const legOutZ = 0.8;
+    // Parameter cakar
     const clawY = legBaseY - (legScaleY / 2);
     const clawSize = 0.15;
     const clawZOffset = 0.5;
     const clawXOffset = 0.2;
 
-    // Kaki Depan Kiri
+    // --- Kaki Depan Kiri ---
     let transformFL = LIBS.get_I4();
     LIBS.translateY(transformFL, legBaseY);
     LIBS.translateX(transformFL, -legOutX);
@@ -1721,15 +1889,17 @@ generateAppletun() {
     LIBS.scaleY(transformFL, legScaleY);
     LIBS.scaleZ(transformFL, legScaleZ);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, legColor, { transformMatrix: transformFL });
-
+    
+    // Cakar 1 Depan Kiri
     let transformClawFL1 = LIBS.get_I4();
     LIBS.translateY(transformClawFL1, clawY);
     LIBS.translateX(transformClawFL1, -legOutX);
     LIBS.translateZ(transformClawFL1, legOutZ + clawZOffset);
-    LIBS.rotateX(transformClawFL1, LIBS.degToRad(-10));
+    LIBS.rotateX(transformClawFL1, LIBS.degToRad(-10)); // Rotasi sedikit ke bawah
     LIBS.scale(transformClawFL1, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawFL1);
-
+    
+    // Cakar 2 Depan Kiri
     let transformClawFL2 = LIBS.get_I4();
     LIBS.translateY(transformClawFL2, clawY);
     LIBS.translateX(transformClawFL2, -legOutX - clawXOffset);
@@ -1738,7 +1908,7 @@ generateAppletun() {
     LIBS.scale(transformClawFL2, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawFL2);
 
-    // Kaki Depan Kanan
+    // --- Kaki Depan Kanan ---
     let transformFR = LIBS.get_I4();
     LIBS.translateY(transformFR, legBaseY);
     LIBS.translateX(transformFR, legOutX);
@@ -1747,7 +1917,8 @@ generateAppletun() {
     LIBS.scaleY(transformFR, legScaleY);
     LIBS.scaleZ(transformFR, legScaleZ);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, legColor, { transformMatrix: transformFR });
-
+    
+    // Cakar 1 Depan Kanan
     let transformClawFR1 = LIBS.get_I4();
     LIBS.translateY(transformClawFR1, clawY);
     LIBS.translateX(transformClawFR1, legOutX);
@@ -1755,7 +1926,8 @@ generateAppletun() {
     LIBS.rotateX(transformClawFR1, LIBS.degToRad(-10));
     LIBS.scale(transformClawFR1, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawFR1);
-
+    
+    // Cakar 2 Depan Kanan
     let transformClawFR2 = LIBS.get_I4();
     LIBS.translateY(transformClawFR2, clawY);
     LIBS.translateX(transformClawFR2, legOutX + clawXOffset);
@@ -1764,7 +1936,7 @@ generateAppletun() {
     LIBS.scale(transformClawFR2, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawFR2);
 
-    // Kaki Belakang Kiri
+    // --- Kaki Belakang Kiri ---
     let transformBL = LIBS.get_I4();
     LIBS.translateY(transformBL, legBaseY);
     LIBS.translateX(transformBL, -legOutX);
@@ -1773,7 +1945,8 @@ generateAppletun() {
     LIBS.scaleY(transformBL, legScaleY);
     LIBS.scaleZ(transformBL, legScaleZ);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, legColor, { transformMatrix: transformBL });
-
+    
+    // Cakar 1 Belakang Kiri
     let transformClawBL1 = LIBS.get_I4();
     LIBS.translateY(transformClawBL1, clawY);
     LIBS.translateX(transformClawBL1, -legOutX);
@@ -1781,7 +1954,8 @@ generateAppletun() {
     LIBS.rotateX(transformClawBL1, LIBS.degToRad(-10));
     LIBS.scale(transformClawBL1, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawBL1);
-
+    
+    // Cakar 2 Belakang Kiri
     let transformClawBL2 = LIBS.get_I4();
     LIBS.translateY(transformClawBL2, clawY);
     LIBS.translateX(transformClawBL2, -legOutX - clawXOffset);
@@ -1790,7 +1964,7 @@ generateAppletun() {
     LIBS.scale(transformClawBL2, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawBL2);
 
-    // Kaki Belakang Kanan
+    // --- Kaki Belakang Kanan ---
     let transformBR = LIBS.get_I4();
     LIBS.translateY(transformBR, legBaseY);
     LIBS.translateX(transformBR, legOutX);
@@ -1799,7 +1973,8 @@ generateAppletun() {
     LIBS.scaleY(transformBR, legScaleY);
     LIBS.scaleZ(transformBR, legScaleZ);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, legColor, { transformMatrix: transformBR });
-
+    
+    // Cakar 1 Belakang Kanan
     let transformClawBR1 = LIBS.get_I4();
     LIBS.translateY(transformClawBR1, clawY);
     LIBS.translateX(transformClawBR1, legOutX);
@@ -1807,7 +1982,8 @@ generateAppletun() {
     LIBS.rotateX(transformClawBR1, LIBS.degToRad(-10));
     LIBS.scale(transformClawBR1, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawBR1);
-
+    
+    // Cakar 2 Belakang Kanan
     let transformClawBR2 = LIBS.get_I4();
     LIBS.translateY(transformClawBR2, clawY);
     LIBS.translateX(transformClawBR2, legOutX + clawXOffset);
@@ -1816,50 +1992,51 @@ generateAppletun() {
     LIBS.scale(transformClawBR2, clawSize);
     generateCube(appletun_vertex, appletun_faces, 1.0, clawColor, transformClawBR2);
 
-    // BAGIAN 8: EKOR
-    const tailColor = [0.3, 0.5, 0.2];
+    // BAGIAN 8: EKOR - Menggunakan Kerucut (Cone)
+    const tailColor = [0.3, 0.5, 0.2]; // Warna Ekor Hijau
     let transformTail = LIBS.get_I4();
     LIBS.translateY(transformTail, -0.40);
-    LIBS.translateZ(transformTail, -1.9);
-    LIBS.rotateX(transformTail, LIBS.degToRad(-110));
+    LIBS.translateZ(transformTail, -1.9); // Posisikan di belakang badan
+    LIBS.rotateX(transformTail, LIBS.degToRad(-110)); // Rotasi agar mengarah ke belakang dan sedikit ke atas
     LIBS.scaleX(transformTail, 0.5);
     LIBS.scaleY(transformTail, 0.9);
     LIBS.scaleZ(transformTail, 0.5);
     generateCone(appletun_vertex, appletun_faces, 1.0, 1.0, 20, tailColor, transformTail);
 
-    // BAGIAN 9: LEHER
-    const neckColor = [0.4, 0.6, 0.3];
+    // BAGIAN 9: LEHER - Menggunakan Elipsoid kecil
+    const neckColor = [0.4, 0.6, 0.3]; // Warna Leher Hijau Tua
     let transformNeck = LIBS.get_I4();
     LIBS.translateY(transformNeck, -0.7);
-    LIBS.translateZ(transformNeck, 1.5);
+    LIBS.translateZ(transformNeck, 1.5); // Posisikan di antara badan dan kepala
     LIBS.scaleX(transformNeck, 0.4);
-    LIBS.scaleY(transformNeck, 0.18);
+    LIBS.scaleY(transformNeck, 0.18); // Sangat pipih
     LIBS.scaleZ(transformNeck, 0.6);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, neckColor, { transformMatrix: transformNeck });
 
-    // BAGIAN 10: HELM MERAH
-    const redHelmetColor = [0.81, 0.36, 0.41];
+    // BAGIAN 10: HELM MERAH - Menggunakan potongan Bola (Red Helmet)
+    const redHelmetColor = [0.81, 0.36, 0.41]; // Warna Merah Jambu/Apel Merah
     let transformHelmet = LIBS.get_I4();
     LIBS.translateY(transformHelmet, -0.05);
-    LIBS.translateZ(transformHelmet, 1.7);
+    LIBS.translateZ(transformHelmet, 1.7); // Posisikan di atas kepala
     LIBS.scaleX(transformHelmet, 0.8);
     LIBS.scaleY(transformHelmet, 0.5);
     LIBS.scaleZ(transformHelmet, 0.8);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 20, 20, redHelmetColor, {
         transformMatrix: transformHelmet,
-        latStart: 0,
-        latEnd: Math.PI / 1.5
+        latStart: 0, // Dari kutub atas
+        latEnd: Math.PI / 1.5 // Potong di sekitar tengah untuk efek helm/topping
     });
 
-    // BAGIAN 11: TELINGA
-    const earColor = [0.35, 0.5, 0.25];
+    // BAGIAN 11: TELINGA - Menggunakan Elipsoid
+    const earColor = [0.35, 0.5, 0.25]; // Warna Telinga Hijau
+    
     // Telinga Kiri
     let transformEarL = LIBS.get_I4();
     LIBS.translateY(transformEarL, -0.5);
     LIBS.translateX(transformEarL, -0.5);
     LIBS.translateZ(transformEarL, 1.7);
-    LIBS.rotateZ(transformEarL, LIBS.degToRad(20));
-    LIBS.rotateY(transformEarL, LIBS.degToRad(-30));
+    LIBS.rotateZ(transformEarL, LIBS.degToRad(20)); // Rotasi Z (kemiringan)
+    LIBS.rotateY(transformEarL, LIBS.degToRad(-30)); // Rotasi Y (orientasi)
     LIBS.scaleX(transformEarL, 0.2);
     LIBS.scaleY(transformEarL, 0.5);
     LIBS.scaleZ(transformEarL, 0.3);
@@ -1870,17 +2047,18 @@ generateAppletun() {
     LIBS.translateY(transformEarR, -0.5);
     LIBS.translateX(transformEarR, 0.5);
     LIBS.translateZ(transformEarR, 1.7);
-    LIBS.rotateZ(transformEarR, LIBS.degToRad(-20));
-    LIBS.rotateY(transformEarR, LIBS.degToRad(30));
+    LIBS.rotateZ(transformEarR, LIBS.degToRad(-20)); // Rotasi berlawanan
+    LIBS.rotateY(transformEarR, LIBS.degToRad(30)); // Rotasi berlawanan
     LIBS.scaleX(transformEarR, 0.2);
     LIBS.scaleY(transformEarR, 0.5);
     LIBS.scaleZ(transformEarR, 0.3);
     generateSphere(appletun_vertex, appletun_faces, 1.0, 15, 15, earColor, { transformMatrix: transformEarR });
 
-    // Set vertex dan faces dari class
+    // Set vertex dan faces ke properti class (misalnya, untuk WebGL/Three.js)
     this.vertex = appletun_vertex;
     this.faces = appletun_faces;
 }
+
   
 // Tambahkan method ini ke dalam class MyObject di myObject2.js
 
