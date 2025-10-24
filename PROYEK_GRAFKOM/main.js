@@ -182,6 +182,13 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     var jariKanan2=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
     jariKanan2.generateEllipseJari(0.3,0.6,0.3);
 
+    var pipiKiri=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
+    pipiKiri.generatePipiFlapple();
+
+    var pipiKanan=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
+    pipiKanan.generatePipiFlapple();
+
+
     var mesh=new MyObject(GL, SHADER_PROGRAM, _position, _color, _Mmatrix);
     mesh.generateKubus();
 
@@ -226,6 +233,14 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     LIBS.rotateX(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(-90) );
     LIBS.rotateY(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(0));
     LIBS.rotateZ(kepalaFlapple.POSITION_MATRIX,LIBS.degToRad(90) );
+
+    LIBS.translateY(pipiKanan.POSITION_MATRIX, 0.7 );
+    LIBS.translateX(pipiKanan.POSITION_MATRIX, 0.6 );
+    LIBS.translateZ(pipiKanan.POSITION_MATRIX, -0.5 );
+
+    LIBS.translateY(pipiKiri.POSITION_MATRIX, 0.7 );
+    LIBS.translateX(pipiKiri.POSITION_MATRIX, -0.6 );
+    LIBS.translateZ(pipiKiri.POSITION_MATRIX, -0.5 );
 
 
     LIBS.translateY(tanduk.POSITION_MATRIX,15)
@@ -285,7 +300,7 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
 
     LIBS.translateY(sayapKanan.POSITION_MATRIX, 8.8 );
     LIBS.translateX(sayapKanan.POSITION_MATRIX, 15.3 );
-    LIBS.translateZ(sayapKanan.POSITION_MATRIX, 0 );
+    LIBS.translateZ(sayapKanan.POSITION_MATRIX, -0.5 );
     LIBS.rotateZ(sayapKanan.POSITION_MATRIX, LIBS.degToRad(120));
     LIBS.rotateX(sayapKanan.POSITION_MATRIX, LIBS.degToRad(180));
     LIBS.rotateY(sayapKanan.POSITION_MATRIX, LIBS.degToRad(0));
@@ -342,6 +357,8 @@ var dragMode = "none"; // Bisa "rotate" atau "pan"
     kepalaFlapple.addChild(tanduk);
     kepalaFlapple.addChild(mataKiriFlapple);
     kepalaFlapple.addChild(mataKananFlapple);
+    kepalaFlapple.addChild(pipiKanan);
+    kepalaFlapple.addChild(pipiKiri);
     badanFlapple.addChild(tanganKananFlapple);
     badanFlapple.addChild(tanganKiriFlapple);
     tanganKananFlapple.addChild(sayapKanan);
@@ -501,7 +518,7 @@ CANVAS.addEventListener('wheel', function(e) {
 
         // --- 2. Animasi Kepak TANGAN ---
         var flapSpeed = 1;
-        var flapRangeY = Math.PI/20; // 60 derajat
+        var flapRangeY = Math.PI/50; // 60 derajat
         var flapAngle = Math.sin(timeInSeconds * flapSpeed) * flapRangeY;
 
         // a. Sayap Kiri
@@ -527,6 +544,9 @@ CANVAS.addEventListener('wheel', function(e) {
         sayapKanan.MOVE_MATRIX = flapMatrixKanan;
         jariKanan1.MOVE_MATRIX = flapMatrixKanan;
         jariKanan2.MOVE_MATRIX = flapMatrixKanan;
+
+
+        // APPLETUN
         
 
 
@@ -549,6 +569,7 @@ CANVAS.addEventListener('wheel', function(e) {
         hydrapple.render(LIBS.get_I4());
         appletun.render(LIBS.get_I4());
         dipplin.render(LIBS.get_I4());
+        
 
 
 
